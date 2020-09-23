@@ -130,9 +130,15 @@
                     .then(res => {
                         localStorage.setItem('token', res.data.token)
                         localStorage.setItem('loggedIn', true)
-                        this.$router.push('/admin')
-                        .then(res => console.log('LoggedIn Successffully'))
-                        .catch(err => console.log(err))
+                        if (res.data.isAdmin) {
+                            this.$router.push('/admin')
+                                .then(res => console.log('LoggedIn Successffully'))
+                                .catch(err => console.log(err))
+                        } else {
+                            this.text = "You Need to be LoggedIn as an Administrator";
+                            this.snackbar = true;
+                        }
+
                     })
                     .catch( err => {
                         this.text = err.response.data.status

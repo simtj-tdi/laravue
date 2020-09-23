@@ -2023,9 +2023,6 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
-//
-//
-//
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "AdminComponent",
   props: {
@@ -2043,13 +2040,17 @@ __webpack_require__.r(__webpack_exports__);
       }, {
         icon: 'post-outline',
         text: 'Posts',
-        action: 'admin/posts'
+        action: '#'
       }, {
         icon: 'circle-edit-outline',
-        text: 'Categories',
-        action: 'admin/pages'
+        text: 'Pages',
+        action: '#'
       }, {
         icon: 'briefcase-edit-outline',
+        text: 'Categories',
+        action: '#'
+      }, {
+        icon: 'account-badge-outline',
         text: 'Roles',
         action: 'admin/roles'
       }],
@@ -2088,6 +2089,7 @@ __webpack_require__.r(__webpack_exports__);
       var _this = this;
 
       localStorage.removeItem('token');
+      localStorage.removeItem('loggedIn');
       this.$router.push('/login').then(function (res) {
         _this.text = "You are Logged Out Successffully";
         _this.snackbar = true;
@@ -2266,11 +2268,16 @@ __webpack_require__.r(__webpack_exports__);
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('loggedIn', true);
 
-        _this.$router.push('/admin').then(function (res) {
-          return console.log('LoggedIn Successffully');
-        })["catch"](function (err) {
-          return console.log(err);
-        });
+        if (res.data.isAdmin) {
+          _this.$router.push('/admin').then(function (res) {
+            return console.log('LoggedIn Successffully');
+          })["catch"](function (err) {
+            return console.log(err);
+          });
+        } else {
+          _this.text = "You Need to be LoggedIn as an Administrator";
+          _this.snackbar = true;
+        }
       })["catch"](function (err) {
         _this.text = err.response.data.status;
         _this.snackbar = true;
@@ -2408,6 +2415,7 @@ __webpack_require__.r(__webpack_exports__);
       dialog: false,
       loading: false,
       snackbar: false,
+      selected: [],
       text: '',
       headers: [{
         text: '#',
@@ -2458,112 +2466,625 @@ __webpack_require__.r(__webpack_exports__);
     this.initialize();
   },
   methods: {
-    searchIt: function searchIt(e) {
+    selectAll: function selectAll(e) {
+      this.selected = [];
+
+      if (e.length > 0) {
+        this.selected = e.map(function (val) {
+          return val.id;
+        });
+      }
+    },
+    deleteAll: function deleteAll() {
       var _this = this;
+
+      var decide = confirm('Are you sure you want to delete these items?');
+
+      if (decide) {
+        axios.post('/api/roles/delete', {
+          'roles': this.selected
+        }).then(function (res) {
+          _this.text = "Records Deleted Successfully!";
+
+          _this.selected.map(function (val) {
+            var index = _this.roles.data.indexOf(val);
+
+            _this.roles.data.splice(index, 1);
+          });
+
+          _this.snackbar = true;
+        })["catch"](function (err) {
+          console.log(err.response);
+          _this.text = "Error Deleting Record";
+          _this.snackbar = true;
+        });
+      }
+    },
+    searchIt: function searchIt(e) {
+      var _this2 = this;
 
       if (e.length > 3) {
         axios.get("/api/roles/".concat(e)).then(function (res) {
-          return _this.roles = res.data.roles;
+          return _this2.roles = res.data.roles;
+        })["catch"](function (err) {
+          return console.dir(err.response);
+        });
+      }
+
+      if (e.length <= 0) {
+        axios.get('/api/roles').then(function (res) {
+          return _this2.roles = res.data.roles;
         })["catch"](function (err) {
           return console.dir(err.response);
         });
       }
     },
     paginate: function paginate(e) {
-      var _this2 = this;
+      var _this3 = this;
 
       axios.get("/api/roles?page=".concat(e.page), {
         params: {
           'per_page': e.itemsPerPage
         }
       }).then(function (res) {
-        return _this2.roles = res.data.roles;
+        return _this3.roles = res.data.roles;
       })["catch"](function (err) {
         if (err.response.status == 401) localStorage.removeItem('token');
 
-        _this2.$reouer.push('/logen');
+        _this3.$reouer.push('/login');
       });
     },
     initialize: function initialize() {
-      var _this3 = this;
+      var _this4 = this;
 
       // Add a request interceptor
       axios.interceptors.request.use(function (config) {
-        _this3.loading = true;
+        _this4.loading = true;
         return config;
       }, function (error) {
-        _this3.loading = false;
+        _this4.loading = false;
         return Promise.reject(error);
       }); // Add a response interceptor
 
       axios.interceptors.response.use(function (response) {
-        _this3.loading = false;
+        _this4.loading = false;
         return response;
       }, function (error) {
-        _this3.loading = false;
+        _this4.loading = false;
         return Promise.reject(error);
       });
     },
     editItem: function editItem(item) {
-      this.editedIndex = this.roles.indexOf(item);
+      this.editedIndex = this.roles.data.indexOf(item);
       this.editedItem = Object.assign({}, item);
       this.dialog = true;
     },
     deleteItem: function deleteItem(item) {
-      var _this4 = this;
+      var _this5 = this;
 
-      var index = this.roles.indexOf(item);
+      var index = this.roles.data.indexOf(item);
       var decide = confirm('Are you sure you want to delete this item?');
 
       if (decide) {
         axios["delete"]('/api/roles/' + item.id).then(function (res) {
-          _this4.snackbar = true;
+          _this5.text = "Record Deleted Successfully!";
+          _this5.snackbar = true;
 
-          _this4.roles.splice(index, 1);
+          _this5.roles.data.splice(index, 1);
         })["catch"](function (err) {
-          return console.log(err.response);
+          console.log(err.response);
+          _this5.text = "Error Deleting Record";
+          _this5.snackbar = true;
         });
       }
     },
     close: function close() {
-      var _this5 = this;
+      var _this6 = this;
 
       this.dialog = false;
       setTimeout(function () {
-        _this5.editedItem = Object.assign({}, _this5.defaultItem);
-        _this5.editedIndex = -1;
+        _this6.editedItem = Object.assign({}, _this6.defaultItem);
+        _this6.editedIndex = -1;
       }, 300);
     },
     save: function save() {
-      var _this6 = this;
+      var _this7 = this;
 
       if (this.editedIndex > -1) {
         var index = this.editedIndex;
         axios.put('/api/roles/' + this.editedItem.id, {
           'name': this.editedItem.name
         }).then(function (res) {
-          _this6.text = "Record Updated Successfully!";
-          _this6.snackbar = true;
-          Object.assign(_this6.roles[index], res.data.role);
+          _this7.text = "Record Updated Successfully!";
+          _this7.snackbar = true;
+          Object.assign(_this7.roles.data[index], res.data.role);
         })["catch"](function (err) {
           console.log(err.response);
-          _this6.text = "Error Updating Record";
-          _this6.snackbar = true;
+          _this7.text = "Error Updating Record";
+          _this7.snackbar = true;
         });
       } else {
         axios.post('/api/roles', {
           'name': this.editedItem.name
         }).then(function (res) {
-          _this6.text = "Record Added Successfully!";
-          _this6.snackbar = true;
+          _this7.text = "Record Added Successfully!";
+          _this7.snackbar = true;
 
-          _this6.roles.push(res.data.role);
+          _this7.roles.data.push(res.data.role);
 
-          _this6.close();
+          _this7.close();
         })["catch"](function (err) {
           console.dir(err.response);
-          _this6.text = "Error Inserting Record";
-          _this6.snackbar = true;
+          _this7.text = "Error Inserting Record";
+          _this7.snackbar = true;
+        });
+      }
+
+      this.close();
+    }
+  }
+});
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/UserComponent.vue?vue&type=script&lang=js&":
+/*!************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib??ref--4-0!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/UserComponent.vue?vue&type=script&lang=js& ***!
+  \************************************************************************************************************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+/* harmony default export */ __webpack_exports__["default"] = ({
+  name: "UsersComponent",
+  data: function data() {
+    return {
+      valid: true,
+      dialog: false,
+      loading: false,
+      snackbar: false,
+      selected: [],
+      text: '',
+      success: '',
+      error: '',
+      options: {
+        sortBy: ['name'],
+        sortDesc: [true]
+      },
+      roles: [],
+      rules: {
+        required: function required(v) {
+          return !!v || 'This Field is Required';
+        },
+        min: function min(v) {
+          return v.length >= 5 || 'Minimum 5 Chracters Required';
+        },
+        validEmail: function validEmail(v) {
+          return /.+@.+\..+/.test(v) || 'E-mail must be valid';
+        }
+      },
+      headers: [{
+        text: '#',
+        align: 'left',
+        sortable: false,
+        value: 'id'
+      }, {
+        text: 'Name',
+        value: 'name'
+      }, {
+        text: 'Email',
+        value: 'email'
+      }, {
+        text: 'Role',
+        value: 'role'
+      }, {
+        text: 'Photo',
+        value: 'photo'
+      }, {
+        text: 'Created At',
+        value: 'created_at'
+      }, {
+        text: 'Updated At',
+        value: 'updated_at'
+      }, {
+        text: 'Actions',
+        value: 'actions',
+        sortable: false
+      }],
+      users: [],
+      editedIndex: -1,
+      editedItem: {
+        id: '',
+        name: '',
+        email: '',
+        role: '',
+        created_at: '',
+        updated_at: '',
+        photo: null
+      },
+      defaultItem: {
+        id: '',
+        name: '',
+        email: '',
+        role: '',
+        photo: '',
+        password: '',
+        rpassword: '',
+        created_at: '',
+        updated_at: ''
+      }
+    };
+  },
+  computed: {
+    formTitle: function formTitle() {
+      return this.editedIndex === -1 ? 'New User' : 'Edit User';
+    },
+    passwordMatch: function passwordMatch() {
+      return this.editedItem.password != this.editedItem.rpassword ? 'Password Does Not Match' : true;
+    }
+  },
+  watch: {
+    dialog: function dialog(val) {
+      val || this.close();
+    }
+  },
+  created: function created() {
+    this.initialize();
+  },
+  methods: {
+    uploadPhoto: function uploadPhoto(item) {
+      var _this = this;
+
+      if (this.editedItem.photo != null) {
+        var index = this.users.data.indexOf(item);
+        var formData = new FormData();
+        formData.append('photo', this.editedItem.photo, this.editedItem.photo.name);
+        formData.append('user', item.id);
+        axios.post('/api/user/photo', formData).then(function (res) {
+          _this.users.data[index].photo = res.data.user.photo;
+          _this.editedItem.photo = null;
+        })["catch"](function (err) {
+          return console.dir(error.response);
+        });
+      }
+    },
+    updateRole: function updateRole(item) {
+      var _this2 = this;
+
+      var index = this.users.data.indexOf(item);
+      axios.post('/api/user/role', {
+        'role': item.role,
+        'user': item.id
+      }).then(function (res) {
+        _this2.text = res.data.user.name + "'s User Role Updated to " + res.data.user.role;
+        _this2.snackbar = true; // this.users.data[index].role = res.data.user.role
+      })["catch"](function (error) {
+        _this2.text = error.response.data.user.name + "'s Role Cannot Be Updated to " + error.response.data.user.role;
+        _this2.users.data[index].role = error.response.data.user.role;
+        _this2.snackbar = true;
+        console.dir(error.response);
+      });
+    },
+    checkEmail: function checkEmail() {
+      var _this3 = this;
+
+      if (/.+@.+\..+/.test(this.editedItem.email)) {
+        axios.post('/api/email/verify', {
+          'email': this.editedItem.email
+        }).then(function (res) {
+          _this3.success = res.data.message;
+          _this3.error = '';
+        })["catch"](function (err) {
+          _this3.success = '';
+          _this3.error = 'Email Already Exists';
+        });
+      }
+    },
+    selectAll: function selectAll(e) {
+      this.selected = [];
+
+      if (e.length > 0) {
+        this.selected = e.map(function (val) {
+          return val.id;
+        });
+      }
+    },
+    deleteAll: function deleteAll() {
+      var _this4 = this;
+
+      var decide = confirm('Are you sure you want to delete these items?');
+
+      if (decide) {
+        axios.post('/api/users/delete', {
+          'users': this.selected
+        }).then(function (res) {
+          _this4.text = "Records Deleted Successfully!";
+
+          _this4.selected.map(function (val) {
+            var index = _this4.users.data.indexOf(val);
+
+            _this4.users.data.splice(index, 1);
+          });
+
+          _this4.snackbar = true;
+        })["catch"](function (err) {
+          console.log(err.response);
+          _this4.text = "Error Deleting Record";
+          _this4.snackbar = true;
+        });
+      }
+    },
+    searchIt: function searchIt(e) {
+      var _this5 = this;
+
+      if (e.length > 3) {
+        axios.get("/api/users/".concat(e)).then(function (res) {
+          return _this5.users = res.data.users;
+        })["catch"](function (err) {
+          return console.dir(err.response);
+        });
+      }
+
+      if (e.length <= 0) {
+        axios.get('/api/users').then(function (res) {
+          return _this5.users = res.data.users;
+        })["catch"](function (err) {
+          return console.dir(err.response);
+        });
+      }
+    },
+    paginate: function paginate(e) {
+      var _this6 = this;
+
+      var sortBy = this.options.sortBy.length == 0 ? 'name' : this.options.sortBy[0];
+      var orderBy = this.options.sortDesc.length > 0 && this.options.sortDesc[0] ? 'asc' : 'desc';
+      axios.get("/api/users?page=".concat(e.page), {
+        params: {
+          'per_page': e.itemsPerPage,
+          'sort_by': sortBy,
+          'order_by': orderBy
+        }
+      }).then(function (res) {
+        _this6.users = res.data.users;
+        _this6.roles = res.data.roles;
+      })["catch"](function (err) {
+        if (err.response.status == 401) localStorage.removeItem('token');
+
+        _this6.$reouer.push('/login');
+      });
+    },
+    initialize: function initialize() {
+      var _this7 = this;
+
+      // Add a request interceptor
+      axios.interceptors.request.use(function (config) {
+        _this7.loading = true;
+        return config;
+      }, function (error) {
+        _this7.loading = false;
+        return Promise.reject(error);
+      }); // Add a response interceptor
+
+      axios.interceptors.response.use(function (response) {
+        _this7.loading = false;
+        return response;
+      }, function (error) {
+        _this7.loading = false;
+        return Promise.reject(error);
+      });
+    },
+    editItem: function editItem(item) {
+      this.editedIndex = this.users.data.indexOf(item);
+      this.editedItem = Object.assign({}, item);
+      this.dialog = true;
+    },
+    deleteItem: function deleteItem(item) {
+      var _this8 = this;
+
+      var index = this.users.data.indexOf(item);
+      var decide = confirm('Are you sure you want to delete this item?');
+
+      if (decide) {
+        axios["delete"]('/api/users/' + item.id).then(function (res) {
+          _this8.text = "Record Deleted Successfully!";
+          _this8.snackbar = true;
+
+          _this8.users.data.splice(index, 1);
+        })["catch"](function (err) {
+          console.log(err.response);
+          _this8.text = "Error Deleting Record";
+          _this8.snackbar = true;
+        });
+      }
+    },
+    close: function close() {
+      var _this9 = this;
+
+      this.dialog = false;
+      setTimeout(function () {
+        _this9.editedItem = Object.assign({}, _this9.defaultItem);
+        _this9.editedIndex = -1;
+      }, 300);
+    },
+    save: function save() {
+      var _this10 = this;
+
+      if (this.editedIndex > -1) {
+        var index = this.editedIndex;
+        axios.put('/api/users/' + this.editedItem.id, this.editedItem).then(function (res) {
+          _this10.text = "Record Updated Successfully!";
+          _this10.snackbar = true;
+          Object.assign(_this10.users.data[index], res.data.user);
+        })["catch"](function (err) {
+          console.log(err.response);
+          _this10.text = "Error Updating Record";
+          _this10.snackbar = true;
+        });
+      } else {
+        axios.post('/api/users', this.editedItem).then(function (res) {
+          _this10.text = "Record Added Successfully!";
+          _this10.snackbar = true;
+
+          _this10.users.data.push(res.data.user);
+
+          _this10.close();
+        })["catch"](function (err) {
+          console.dir(err.response);
+          _this10.text = "Error Inserting Record";
+          _this10.snackbar = true;
         });
       }
 
@@ -20437,37 +20958,6 @@ var render = function() {
                       _c(
                         "v-snackbar",
                         {
-                          scopedSlots: _vm._u([
-                            {
-                              key: "action",
-                              fn: function(ref) {
-                                var attrs = ref.attrs
-                                return [
-                                  _c(
-                                    "v-btn",
-                                    _vm._b(
-                                      {
-                                        attrs: { color: "pink", text: "" },
-                                        on: {
-                                          click: function($event) {
-                                            _vm.snackbar = false
-                                          }
-                                        }
-                                      },
-                                      "v-btn",
-                                      attrs,
-                                      false
-                                    ),
-                                    [
-                                      _vm._v(
-                                        "\n                                Close\n                            "
-                                      )
-                                    ]
-                                  )
-                                ]
-                              }
-                            }
-                          ]),
                           model: {
                             value: _vm.snackbar,
                             callback: function($$v) {
@@ -20479,8 +20969,25 @@ var render = function() {
                         [
                           _vm._v(
                             "\n                        You Are LoggedIn Successfully!\n                        "
+                          ),
+                          _c(
+                            "v-btn",
+                            {
+                              attrs: { color: "pink", text: "" },
+                              on: {
+                                click: function($event) {
+                                  _vm.snackbar = false
+                                }
+                              }
+                            },
+                            [
+                              _vm._v(
+                                "\n                            Close\n                        "
+                              )
+                            ]
                           )
-                        ]
+                        ],
+                        1
                       )
                     ],
                     1
@@ -20775,6 +21282,7 @@ var render = function() {
         "server-items-length": _vm.roles.total,
         items: _vm.roles.data,
         "items-per-page": 5,
+        "show-select": "",
         "sort-by": "calories",
         "footer-props": {
           itemsPerPageOptions: [5, 10, 15],
@@ -20783,7 +21291,7 @@ var render = function() {
           "show-first-last-page": true
         }
       },
-      on: { pagination: _vm.paginate },
+      on: { pagination: _vm.paginate, input: _vm.selectAll },
       scopedSlots: _vm._u([
         {
           key: "top",
@@ -20816,18 +21324,23 @@ var render = function() {
                               _c(
                                 "v-btn",
                                 _vm._g(
-                                  _vm._b(
-                                    {
-                                      staticClass: "mb-2",
-                                      attrs: { color: "error", dark: "" }
-                                    },
-                                    "v-btn",
-                                    attrs,
-                                    false
-                                  ),
+                                  {
+                                    staticClass: "mb-2",
+                                    attrs: { color: "error", dark: "" }
+                                  },
                                   on
                                 ),
                                 [_vm._v("Add New Role")]
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-btn",
+                                {
+                                  staticClass: "mb-2 mr-2",
+                                  attrs: { color: "error", dark: "" },
+                                  on: { click: _vm.deleteAll }
+                                },
+                                [_vm._v("Delete")]
                               )
                             ]
                           }
@@ -20930,10 +21443,24 @@ var render = function() {
                 1
               ),
               _vm._v(" "),
-              _c("v-text-field", {
-                attrs: { label: "Search..." },
-                on: { input: _vm.searchIt }
-              })
+              _c(
+                "v-row",
+                [
+                  _c(
+                    "v-col",
+                    { attrs: { cols: "12" } },
+                    [
+                      _c("v-text-field", {
+                        staticClass: "mx-4",
+                        attrs: { label: "Search..." },
+                        on: { input: _vm.searchIt }
+                      })
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
             ]
           },
           proxy: true
@@ -20998,33 +21525,6 @@ var render = function() {
       _c(
         "v-snackbar",
         {
-          scopedSlots: _vm._u([
-            {
-              key: "action",
-              fn: function(ref) {
-                var attrs = ref.attrs
-                return [
-                  _c(
-                    "v-btn",
-                    _vm._b(
-                      {
-                        attrs: { color: "error", text: "" },
-                        on: {
-                          click: function($event) {
-                            _vm.snackbar = false
-                          }
-                        }
-                      },
-                      "v-btn",
-                      attrs,
-                      false
-                    ),
-                    [_vm._v("\n                Close\n            ")]
-                  )
-                ]
-              }
-            }
-          ]),
           model: {
             value: _vm.snackbar,
             callback: function($$v) {
@@ -21033,7 +21533,656 @@ var render = function() {
             expression: "snackbar"
           }
         },
-        [_vm._v("\n        Record Deleted Successfully!\n        ")]
+        [
+          _vm._v("\n        " + _vm._s(_vm.text) + "\n        "),
+          _c(
+            "v-btn",
+            {
+              attrs: { color: "error", text: "" },
+              on: {
+                click: function($event) {
+                  _vm.snackbar = false
+                }
+              }
+            },
+            [_vm._v("\n            Close\n        ")]
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+
+
+
+/***/ }),
+
+/***/ "./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true&":
+/*!****************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true& ***!
+  \****************************************************************************************************************************************************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "render", function() { return render; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return staticRenderFns; });
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "v-data-table",
+    {
+      staticClass: "elevation-1",
+      attrs: {
+        "item-key": "name",
+        color: "error",
+        loading: _vm.loading,
+        "loading-text": "Loading... Please wait",
+        headers: _vm.headers,
+        "server-items-length": _vm.users.total,
+        options: _vm.options,
+        items: _vm.users.data,
+        "items-per-page": 5,
+        "show-select": "",
+        "sort-by": "calories",
+        "footer-props": {
+          itemsPerPageOptions: [5, 10, 15],
+          itemsPerPageText: "Users Per Page",
+          "show-current-page": true,
+          "show-first-last-page": true
+        }
+      },
+      on: {
+        pagination: _vm.paginate,
+        "update:options": function($event) {
+          _vm.options = $event
+        },
+        input: _vm.selectAll
+      },
+      scopedSlots: _vm._u([
+        {
+          key: "top",
+          fn: function() {
+            return [
+              _c(
+                "v-toolbar",
+                { attrs: { flat: "", color: "dark" } },
+                [
+                  _c("v-toolbar-title", [_vm._v("User Management System")]),
+                  _vm._v(" "),
+                  _c("v-divider", {
+                    staticClass: "mx-4",
+                    attrs: { inset: "", vertical: "" }
+                  }),
+                  _vm._v(" "),
+                  _c("v-spacer"),
+                  _vm._v(" "),
+                  _c(
+                    "v-dialog",
+                    {
+                      attrs: { "max-width": "500px" },
+                      scopedSlots: _vm._u([
+                        {
+                          key: "activator",
+                          fn: function(ref) {
+                            var on = ref.on
+                            var attrs = ref.attrs
+                            return [
+                              _c(
+                                "v-btn",
+                                _vm._g(
+                                  {
+                                    staticClass: "mb-2",
+                                    attrs: { color: "error", dark: "" }
+                                  },
+                                  on
+                                ),
+                                [_vm._v("Add New User")]
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-btn",
+                                {
+                                  staticClass: "mb-2 mr-2",
+                                  attrs: { color: "error", dark: "" },
+                                  on: { click: _vm.deleteAll }
+                                },
+                                [_vm._v("Delete")]
+                              )
+                            ]
+                          }
+                        }
+                      ]),
+                      model: {
+                        value: _vm.dialog,
+                        callback: function($$v) {
+                          _vm.dialog = $$v
+                        },
+                        expression: "dialog"
+                      }
+                    },
+                    [
+                      _vm._v(" "),
+                      _c(
+                        "v-card",
+                        [
+                          _c("v-card-title", [
+                            _c("span", { staticClass: "headline" }, [
+                              _vm._v(_vm._s(_vm.formTitle))
+                            ])
+                          ]),
+                          _vm._v(" "),
+                          _c(
+                            "v-form",
+                            {
+                              attrs: { method: "post" },
+                              on: {
+                                submit: function($event) {
+                                  $event.stopPropagation()
+                                  $event.preventDefault()
+                                  return _vm.save($event)
+                                }
+                              },
+                              model: {
+                                value: _vm.valid,
+                                callback: function($$v) {
+                                  _vm.valid = $$v
+                                },
+                                expression: "valid"
+                              }
+                            },
+                            [
+                              _c(
+                                "v-card-text",
+                                [
+                                  _c(
+                                    "v-container",
+                                    [
+                                      _c(
+                                        "v-row",
+                                        [
+                                          _c(
+                                            "v-col",
+                                            { attrs: { cols: "12", sm: "12" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  color: "error",
+                                                  label: "Name",
+                                                  rules: [
+                                                    _vm.rules.required,
+                                                    _vm.rules.min
+                                                  ]
+                                                },
+                                                model: {
+                                                  value: _vm.editedItem.name,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.editedItem,
+                                                      "name",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "editedItem.name"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          )
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _vm.editedIndex == -1
+                                        ? _c(
+                                            "v-row",
+                                            [
+                                              _c(
+                                                "v-col",
+                                                {
+                                                  attrs: {
+                                                    cols: "12",
+                                                    sm: "12"
+                                                  }
+                                                },
+                                                [
+                                                  _c("v-text-field", {
+                                                    attrs: {
+                                                      type: "password",
+                                                      color: "error",
+                                                      label: "Type Password",
+                                                      rules: [
+                                                        _vm.rules.required
+                                                      ]
+                                                    },
+                                                    model: {
+                                                      value:
+                                                        _vm.editedItem.password,
+                                                      callback: function($$v) {
+                                                        _vm.$set(
+                                                          _vm.editedItem,
+                                                          "password",
+                                                          $$v
+                                                        )
+                                                      },
+                                                      expression:
+                                                        "editedItem.password"
+                                                    }
+                                                  })
+                                                ],
+                                                1
+                                              ),
+                                              _vm._v(" "),
+                                              _c(
+                                                "v-col",
+                                                {
+                                                  attrs: {
+                                                    cols: "12",
+                                                    sm: "12"
+                                                  }
+                                                },
+                                                [
+                                                  _c("v-text-field", {
+                                                    attrs: {
+                                                      type: "password",
+                                                      color: "error",
+                                                      label: "Retype Password",
+                                                      rules: [
+                                                        _vm.rules.required,
+                                                        _vm.passwordMatch
+                                                      ]
+                                                    },
+                                                    model: {
+                                                      value:
+                                                        _vm.editedItem
+                                                          .rpassword,
+                                                      callback: function($$v) {
+                                                        _vm.$set(
+                                                          _vm.editedItem,
+                                                          "rpassword",
+                                                          $$v
+                                                        )
+                                                      },
+                                                      expression:
+                                                        "editedItem.rpassword"
+                                                    }
+                                                  })
+                                                ],
+                                                1
+                                              ),
+                                              _vm._v(" "),
+                                              _c(
+                                                "v-col",
+                                                {
+                                                  attrs: {
+                                                    cols: "12",
+                                                    sm: "12"
+                                                  }
+                                                },
+                                                [
+                                                  _c("v-text-field", {
+                                                    attrs: {
+                                                      type: "email",
+                                                      "success-messages":
+                                                        _vm.success,
+                                                      "error-messages":
+                                                        _vm.error,
+                                                      color: "error",
+                                                      label: "Email",
+                                                      rules: [
+                                                        _vm.rules.required,
+                                                        _vm.rules.validEmail
+                                                      ]
+                                                    },
+                                                    on: {
+                                                      ":blur": _vm.checkEmail
+                                                    },
+                                                    model: {
+                                                      value:
+                                                        _vm.editedItem.email,
+                                                      callback: function($$v) {
+                                                        _vm.$set(
+                                                          _vm.editedItem,
+                                                          "email",
+                                                          $$v
+                                                        )
+                                                      },
+                                                      expression:
+                                                        "editedItem.email"
+                                                    }
+                                                  })
+                                                ],
+                                                1
+                                              )
+                                            ],
+                                            1
+                                          )
+                                        : _vm._e(),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-row",
+                                        [
+                                          _c(
+                                            "v-col",
+                                            { attrs: { cols: "12", sm: "12" } },
+                                            [
+                                              _c("v-select", {
+                                                attrs: {
+                                                  items: _vm.roles,
+                                                  color: "error",
+                                                  label: "Select Role",
+                                                  rules: [_vm.rules.required]
+                                                },
+                                                model: {
+                                                  value: _vm.editedItem.role,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.editedItem,
+                                                      "role",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "editedItem.role"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          )
+                                        ],
+                                        1
+                                      )
+                                    ],
+                                    1
+                                  )
+                                ],
+                                1
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-card-actions",
+                                [
+                                  _c("v-spacer"),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: {
+                                        color: "error darken-1",
+                                        text: ""
+                                      },
+                                      on: { click: _vm.close }
+                                    },
+                                    [_vm._v("Cancel")]
+                                  ),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: {
+                                        type: "submit",
+                                        disabled: !_vm.valid,
+                                        color: "error darken-1",
+                                        text: ""
+                                      },
+                                      on: { click: _vm.save }
+                                    },
+                                    [_vm._v("Save")]
+                                  )
+                                ],
+                                1
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              ),
+              _vm._v(" "),
+              _c(
+                "v-row",
+                [
+                  _c(
+                    "v-col",
+                    { attrs: { cols: "12" } },
+                    [
+                      _c("v-text-field", {
+                        staticClass: "mx-4",
+                        attrs: { label: "Search..." },
+                        on: { input: _vm.searchIt }
+                      })
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ]
+          },
+          proxy: true
+        },
+        {
+          key: "item.role",
+          fn: function(ref) {
+            var item = ref.item
+            return [
+              _c(
+                "v-edit-dialog",
+                {
+                  attrs: {
+                    large: "",
+                    block: "",
+                    persistent: "",
+                    "return-value": item.role
+                  },
+                  on: {
+                    "update:returnValue": function($event) {
+                      return _vm.$set(item, "role", $event)
+                    },
+                    "update:return-value": function($event) {
+                      return _vm.$set(item, "role", $event)
+                    },
+                    save: function($event) {
+                      return _vm.updateRole(item)
+                    }
+                  },
+                  scopedSlots: _vm._u(
+                    [
+                      {
+                        key: "input",
+                        fn: function() {
+                          return [
+                            _c("v-select", {
+                              attrs: {
+                                items: _vm.roles,
+                                color: "error",
+                                label: "Select Role",
+                                rules: [_vm.rules.required]
+                              },
+                              model: {
+                                value: item.role,
+                                callback: function($$v) {
+                                  _vm.$set(item, "role", $$v)
+                                },
+                                expression: "item .role"
+                              }
+                            })
+                          ]
+                        },
+                        proxy: true
+                      }
+                    ],
+                    null,
+                    true
+                  )
+                },
+                [
+                  _vm._v(
+                    "\n            " + _vm._s(item.role) + "\n            "
+                  )
+                ]
+              )
+            ]
+          }
+        },
+        {
+          key: "item.photo",
+          fn: function(ref) {
+            var item = ref.item
+            return [
+              _c(
+                "v-edit-dialog",
+                {
+                  scopedSlots: _vm._u(
+                    [
+                      {
+                        key: "input",
+                        fn: function() {
+                          return [
+                            _c("v-file-input", {
+                              attrs: {
+                                label: "Select File",
+                                placeholder: "Upload Avatar",
+                                accept:
+                                  "image/jpg, image/png, image/bmp, image/jpeg"
+                              },
+                              on: {
+                                change: function($event) {
+                                  return _vm.uploadPhoto(item)
+                                }
+                              },
+                              model: {
+                                value: _vm.editedItem.photo,
+                                callback: function($$v) {
+                                  _vm.$set(_vm.editedItem, "photo", $$v)
+                                },
+                                expression: "editedItem.photo"
+                              }
+                            })
+                          ]
+                        },
+                        proxy: true
+                      }
+                    ],
+                    null,
+                    true
+                  )
+                },
+                [
+                  _c(
+                    "v-list-item-avatar",
+                    [
+                      _c("v-img", {
+                        staticClass: "grey lighten-2",
+                        attrs: { src: item.photo, "aspect-ratio": "1" }
+                      })
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ]
+          }
+        },
+        {
+          key: "item.actions",
+          fn: function(ref) {
+            var item = ref.item
+            return [
+              _c(
+                "v-icon",
+                {
+                  staticClass: "mr-2",
+                  attrs: { small: "" },
+                  on: {
+                    click: function($event) {
+                      return _vm.editItem(item)
+                    }
+                  }
+                },
+                [
+                  _vm._v(
+                    "\n            mdi-content-save-edit-outline\n        "
+                  )
+                ]
+              ),
+              _vm._v(" "),
+              _c(
+                "v-icon",
+                {
+                  attrs: { small: "" },
+                  on: {
+                    click: function($event) {
+                      return _vm.deleteItem(item)
+                    }
+                  }
+                },
+                [_vm._v("\n            mdi-delete\n        ")]
+              )
+            ]
+          }
+        },
+        {
+          key: "no-data",
+          fn: function() {
+            return [
+              _c(
+                "v-btn",
+                { attrs: { color: "error" }, on: { click: _vm.initialize } },
+                [_vm._v("Reset")]
+              )
+            ]
+          },
+          proxy: true
+        }
+      ])
+    },
+    [
+      _vm._v(" "),
+      _vm._v(" "),
+      _vm._v(" "),
+      _vm._v(" "),
+      _vm._v(" "),
+      _c(
+        "v-snackbar",
+        {
+          model: {
+            value: _vm.snackbar,
+            callback: function($$v) {
+              _vm.snackbar = $$v
+            },
+            expression: "snackbar"
+          }
+        },
+        [
+          _vm._v("\n        " + _vm._s(_vm.text) + "\n        "),
+          _c(
+            "v-btn",
+            {
+              attrs: { color: "error", text: "" },
+              on: {
+                click: function($event) {
+                  _vm.snackbar = false
+                }
+              }
+            },
+            [_vm._v("\n            Close\n        ")]
+          )
+        ],
+        1
       )
     ],
     1
@@ -80373,6 +81522,75 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./resources/js/components/UserComponent.vue":
+/*!***************************************************!*\
+  !*** ./resources/js/components/UserComponent.vue ***!
+  \***************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true& */ "./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true&");
+/* harmony import */ var _UserComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./UserComponent.vue?vue&type=script&lang=js& */ "./resources/js/components/UserComponent.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport *//* harmony import */ var _node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../node_modules/vue-loader/lib/runtime/componentNormalizer.js */ "./node_modules/vue-loader/lib/runtime/componentNormalizer.js");
+
+
+
+
+
+/* normalize component */
+
+var component = Object(_node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__["default"])(
+  _UserComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__["default"],
+  _UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__["render"],
+  _UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"],
+  false,
+  null,
+  "7f050fd2",
+  null
+  
+)
+
+/* hot reload */
+if (false) { var api; }
+component.options.__file = "resources/js/components/UserComponent.vue"
+/* harmony default export */ __webpack_exports__["default"] = (component.exports);
+
+/***/ }),
+
+/***/ "./resources/js/components/UserComponent.vue?vue&type=script&lang=js&":
+/*!****************************************************************************!*\
+  !*** ./resources/js/components/UserComponent.vue?vue&type=script&lang=js& ***!
+  \****************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_UserComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib??ref--4-0!../../../node_modules/vue-loader/lib??vue-loader-options!./UserComponent.vue?vue&type=script&lang=js& */ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/UserComponent.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport */ /* harmony default export */ __webpack_exports__["default"] = (_node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_UserComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__["default"]); 
+
+/***/ }),
+
+/***/ "./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true&":
+/*!**********************************************************************************************!*\
+  !*** ./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true& ***!
+  \**********************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!../../../node_modules/vue-loader/lib??vue-loader-options!./UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true& */ "./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/UserComponent.vue?vue&type=template&id=7f050fd2&scoped=true&");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "render", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__["render"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_UserComponent_vue_vue_type_template_id_7f050fd2_scoped_true___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"]; });
+
+
+
+/***/ }),
+
 /***/ "./resources/js/router.js":
 /*!********************************!*\
   !*** ./resources/js/router.js ***!
@@ -80388,6 +81606,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_LoginComponent__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/LoginComponent */ "./resources/js/components/LoginComponent.vue");
 /* harmony import */ var _components_AdminComponent__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/AdminComponent */ "./resources/js/components/AdminComponent.vue");
 /* harmony import */ var _components_RolesComponent__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/RolesComponent */ "./resources/js/components/RolesComponent.vue");
+/* harmony import */ var _components_UserComponent__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/UserComponent */ "./resources/js/components/UserComponent.vue");
+
 
 
 
@@ -80409,6 +81629,10 @@ var routes = [{
     path: 'roles',
     component: _components_RolesComponent__WEBPACK_IMPORTED_MODULE_4__["default"],
     name: 'Roles'
+  }, {
+    path: 'users',
+    component: _components_UserComponent__WEBPACK_IMPORTED_MODULE_5__["default"],
+    name: 'Users'
   }],
   beforeEnter: function beforeEnter(to, from, next) {
     axios.get('api/verify').then(function (res) {

@@ -43,8 +43,8 @@ class RoleController extends Controller
      */
     public function show($id)
     {
-        $roles = Role::where('name', 'LIKE', $id)->paginate();
-        return response()->json(['roles'=>$roles], 200);
+        $roles = Role::where('name', 'like', "%$id%")->paginate(10);
+        return response()->json(['roles' => $roles], 200);
     }
 
 
@@ -74,5 +74,11 @@ class RoleController extends Controller
     {
         $role = Role::find($id)->delete();
         return response()->json(['role' => $role], 200);
+    }
+
+    public function deleteAll(Request $request)
+    {
+        Role::whereIn('id', $request->roles)->delete();
+        return response()->json(['message', 'Records Deleted Successfully'], 200);
     }
 }

@@ -98,16 +98,13 @@
                             v-model="snackbar"
                         >
                             You Are LoggedIn Successfully!
-                            <template v-slot:action="{ attrs }">
-                                <v-btn
-                                    color="pink"
-                                    text
-                                    v-bind="attrs"
-                                    @click="snackbar = false"
-                                >
-                                    Close
-                                </v-btn>
-                            </template>
+                            <v-btn
+                                color="pink"
+                                text
+                                @click="snackbar = false"
+                            >
+                                Close
+                            </v-btn>
                         </v-snackbar>
                     </v-col>
                 </v-row>
@@ -129,9 +126,10 @@
             theme: true,
             items: [
                 { icon: 'account', text: 'Users', action: 'admin/users' },
-                { icon: 'post-outline', text: 'Posts', action: 'admin/posts' },
-                { icon: 'circle-edit-outline', text: 'Categories', action: 'admin/pages' },
-                { icon: 'briefcase-edit-outline', text: 'Roles', action: 'admin/roles' },
+                { icon: 'post-outline', text: 'Posts', action: '#' },
+                { icon: 'circle-edit-outline', text: 'Pages', action: '#' },
+                { icon: 'briefcase-edit-outline', text: 'Categories', action: '#' },
+                { icon: 'account-badge-outline', text: 'Roles', action: 'admin/roles' },
             ],
             items2: [
                 { picture: 28, text: 'Joseph' },
@@ -157,6 +155,7 @@
         methods: {
             logout: function() {
                 localStorage.removeItem('token');
+                localStorage.removeItem('loggedIn');
                 this.$router.push('/login')
                     .then(res => {
                         this.text = "You are Logged Out Successffully";
